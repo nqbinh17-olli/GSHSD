@@ -1,7 +1,15 @@
 import numpy as np
 from decorators import timer, debug
-import json
-import random
+import torch
+
+def get_device():
+    if torch.cuda.is_available():
+        device = torch.device(f"cuda:{torch.cuda.current_device()}")
+    else:
+        device = torch.device("cpu")
+    print(f"Using {device}")
+    return device
+
 
 def sigmoid(z):
     return 1/(1+np.e**(-z))

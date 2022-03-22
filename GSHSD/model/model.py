@@ -22,9 +22,10 @@ class TransformerEncoder(nn.Module):
     :param do_lower_case: If true, lowercases the input (independent if the model is cased or not)
     :param tokenizer_name_or_path: Name or path of the tokenizer. When None, then model_name_or_path is used
     """
-    def __init__(self, model_name_or_path: str, 
+    def __init__(self, model_name_or_path: str,
+                 classes_num: int,  
                  max_seq_length: Optional[int] = None,
-                 dropout_rates = [0.2, 0.5],
+                 dropout_rate:float = 0.2,
                  model_args: Dict = {}, 
                  cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, 
@@ -37,10 +38,13 @@ class TransformerEncoder(nn.Module):
         tokenizer_path = tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path
         self.sent_encoder = AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, cache_dir=cache_dir, **tokenizer_args)
-        self.drop_out_trans = nn.Dropout(dropout_rates[0])
+        self.drop_out_trans = nn.Dropout(dropout_rate)
         emb_size = self.get_word_embedding_dimension()
         self.trans_pooler = SqueezeAttentionPooling(emb_size, squeeze_factor=4)
         
+        self.classifier = nn.Linear(emb_size, classes_num)
+        nn.init.xavier_uniform_(self.classifier.weight)
+        nn.init.constant_(self.classifier.bias, 0)
 
         #configs define
         self.config_keys = ['max_seq_length', 'do_lower_case', 'checkpoint_batch_size']
@@ -85,7 +89,7 @@ class TransformerEncoder(nn.Module):
         
         if input_shape[0] <= self.checkpoint_batch_size:
 #           self.sent_encoder(input_ids, attention_mask=attention_mask).last_hidden_state # last_hidden_state [bs, length, dim]
-            transformer_out = self.__partial_encode(embedding_output, extended_attention_mask, head_mask)
+            trans_outs = self.__partial_encode(embedding_output, extended_attention_mask, head_mask)
         else:
             trans_outs = []
             for b in range(math.ceil(input_shape[0] / self.checkpoint_batch_size)):
@@ -93,10 +97,11 @@ class TransformerEncoder(nn.Module):
                 b_attention_mask = extended_attention_mask[b * self.checkpoint_batch_size : (b + 1) * self.checkpoint_batch_size]
                 transformer_out_b = checkpoint.checkpoint(self.__partial_encode, b_embedding_output, b_attention_mask, head_mask)
                 trans_outs.append(transformer_out_b)
-            
-            transformer_out = self.drop_out_trans(torch.cat(trans_outs, dim=0))
-            embedding = self.trans_pooler(transformer_out)
-        return embedding # [bs, dim] X 2
+            trans_outs = torch.cat(trans_outs, dim=0)
+          
+        transformer_out = self.drop_out_trans(trans_outs)
+        transformer_out = self.trans_pooler(transformer_out)
+        return transformer_out # [bs, dim] X 2
         
     def get_word_embedding_dimension(self) -> int:
         return self.sent_encoder.config.hidden_size
@@ -117,4 +122,5 @@ class TransformerEncoder(nn.Module):
         return TransformerEncoder(model_name_or_path=input_path, **config)
     
     def forward(self, features):
-        return self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
+        emb = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
+        return self.classifier(emb)

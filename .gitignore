@@ -129,3 +129,5 @@ dmypy.json
 .pyre/
 slotattn-hatespeech-vihsd.ipynb
 Vihsd_HateSpeech_GNN.ipynb
+weights
+runs
