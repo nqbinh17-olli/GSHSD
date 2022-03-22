@@ -5,7 +5,7 @@ from copy import copy
 
 class ViHSDData(Dataset):
     @timer
-    def __init__(self, path,
+    def __init__(self, data_df,
                  utterance_feild,
                  label_feild,
                  text_preprocessor=None
@@ -16,7 +16,7 @@ class ViHSDData(Dataset):
         self.utterance_feild = utterance_feild
         self.label_feild = label_feild
 
-        self.data_df = pd.read_csv(path)
+        self.data_df = data_df
         if self.text_preprocessor is not None:
             print("Preprocessing")
             self.data_df["origin_"+self.utterance_feild] = copy(self.data_df[self.utterance_feild])
