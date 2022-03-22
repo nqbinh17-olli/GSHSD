@@ -51,7 +51,7 @@ class TransformerEncoder(nn.Module):
         self.do_lower_case = do_lower_case
         self.checkpoint_batch_size = checkpoint_batch_size
         #No max_seq_length set. Try to infer from model
-        self.max_seq_length = self.__get_max_seq_length(max_seq_length)
+        self.max_seq_length = self.__get_max_seq_length(max_seq_length) # Do nothing
 
         if tokenizer_name_or_path is not None:
             self.sent_encoder.config.tokenizer_class = self.tokenizer.__class__.__name__

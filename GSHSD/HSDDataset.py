@@ -8,11 +8,13 @@ class ViHSDData(Dataset):
     def __init__(self, data_df,
                  utterance_feild,
                  label_feild,
-                 text_preprocessor=None
+                 text_preprocessor=None,
+                 augment_fnct = None
                 ):
         super(ViHSDData, self).__init__()
         self.label_feild = label_feild
         self.text_preprocessor = text_preprocessor
+        self.augment_fnct = augment_fnct
         self.utterance_feild = utterance_feild
         self.label_feild = label_feild
 
@@ -27,20 +29,25 @@ class ViHSDData(Dataset):
 
     def __getitem__(self, idx):
         row_idx_data = self.data_df.iloc[idx]
-        utterance, hate_label = row_idx_data[self.utterance_feild], row_idx_data[self.label_feild]
+        if self.augment_fnct is not None:
+            utterance, hate_label = self.augment_fnct(row_idx_data)
+        else:
+            utterance, hate_label = row_idx_data[self.utterance_feild], row_idx_data[self.label_feild]
         return utterance, hate_label
 
 
 if __name__== "__main__":
+    import pandas as pd
     
     def proprocess(x):
         x = str(x)
         return x.lower().strip()
     
-    data = ViHSDData("GSHSD/data/vihsd/train.csv", 
+    df = pd.read_csv("GSHSD/data/vihsd/train.csv")
+    data = ViHSDData(df, 
                      utterance_feild = "free_text", 
                      label_feild="label_id", 
-                     text_preprocessor=None)
+                     text_preprocessor=proprocess)
                      
     for i, data in enumerate(data):
         print(data)
