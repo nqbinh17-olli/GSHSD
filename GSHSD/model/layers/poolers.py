@@ -19,7 +19,10 @@ class SqueezeAttentionPooling(nn.Module):
         self.layer_norm_AT = nn.LayerNorm(in_size)
         
         nn.init.xavier_normal_(self.squeeze.weight)
-        nn.init.xavier_normal_(self.excitation.weight)
+        nn.init.constant_(self.squeeze.bias, 0)
+        
+        nn.init.xavier_normal_(self.squeeze.weight)
+        nn.init.constant_(self.excitation.bias, 0)
 
 
     def forward(self, features):

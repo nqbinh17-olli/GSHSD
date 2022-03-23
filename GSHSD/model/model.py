@@ -43,7 +43,7 @@ class TransformerEncoder(nn.Module):
         self.trans_pooler = SqueezeAttentionPooling(emb_size, squeeze_factor=4)
         
         self.classifier = nn.Linear(emb_size, classes_num)
-        nn.init.xavier_uniform_(self.classifier.weight)
+        nn.init.xavier_normal_(self.classifier.weight)
         nn.init.constant_(self.classifier.bias, 0)
 
         #configs define
@@ -123,4 +123,4 @@ class TransformerEncoder(nn.Module):
     
     def forward(self, features):
         emb = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
-        return self.classifier(emb)
+        return self.classifier(emb), emb

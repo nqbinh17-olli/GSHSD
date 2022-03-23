@@ -9,7 +9,6 @@ class SelfAttention(nn.Module):
         self.K = nn.Linear(in_size , hidden_size)
         self.Q = nn.Linear(in_size , hidden_size)
         self.V = nn.Linear(in_size , hidden_size)
-        self.layer_norm_AT = nn.LayerNorm(in_size)
         
         nn.init.xavier_normal_(self.K.weight)
         nn.init.constant_(self.K.bias, 0)

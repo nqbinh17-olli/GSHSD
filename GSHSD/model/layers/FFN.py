@@ -3,7 +3,7 @@ from torch import nn
 
 # %%
 class FFN(nn.Module):
-    def __init__(self, in_size: int = 768, excitation_factor: int = 4, activation = torch.selu) -> None:
+    def __init__(self, in_size: int = 768, excitation_factor: int = 4, activation = torch.relu) -> None:
         super(FFN, self).__init__()
         scaled_size = int(in_size*excitation_factor)
         self.scale_linear = nn.Linear(in_size, scaled_size, bias=True)
