@@ -8,7 +8,8 @@ from torch import nn
 from torch.utils import checkpoint
 from transformers import AutoModel, AutoTokenizer, AutoConfig
 
-from model.layers.poolers import SqueezeAttentionPooling
+from model.layers.poolers import SqueezeAttentionPooling, CrossAttentionPooling
+from model.layers.CNN import ConvBlock
 
 
 class TransformerEncoder(nn.Module):
@@ -40,7 +41,9 @@ class TransformerEncoder(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, cache_dir=cache_dir, **tokenizer_args)
         self.drop_out_trans = nn.Dropout(dropout_rate)
         emb_size = self.get_word_embedding_dimension()
-        self.trans_pooler = SqueezeAttentionPooling(emb_size, squeeze_factor=4)
+
+        self.CNN_model = ConvBlock(emb_size, emb_size)
+        self.cross_pooler = CrossAttentionPooling(emb_size)
         
         self.classifier = nn.Linear(emb_size, classes_num)
         nn.init.xavier_normal_(self.classifier.weight)
@@ -100,8 +103,7 @@ class TransformerEncoder(nn.Module):
             trans_outs = torch.cat(trans_outs, dim=0)
           
         transformer_out = self.drop_out_trans(trans_outs)
-        transformer_out = self.trans_pooler(transformer_out)
-        return transformer_out # [bs, dim] X 2
+        return embedding_output, transformer_out # [bs, dim] X 2
         
     def get_word_embedding_dimension(self) -> int:
         return self.sent_encoder.config.hidden_size
@@ -122,5 +124,8 @@ class TransformerEncoder(nn.Module):
         return TransformerEncoder(model_name_or_path=input_path, **config)
     
     def forward(self, features):
-        emb = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
+        embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
+        cls_ctx = transformer_out[:,0,:]
+        cnn_out = self.CNN_model(embedding_output)
+        emb = self.cross_pooler(cls_ctx, cnn_out)
         return self.classifier(emb), emb
