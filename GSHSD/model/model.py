@@ -127,7 +127,7 @@ class TransformerEncoder(nn.Module):
     
     def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
-        cls_ctx = transformer_out[:,0,:]
+        cls_ctx = transformer_out[:,0,:].squeeze()
         cnn_out = self.CNN_model(embedding_output)
         cls_cnn_emb = self.cross_pooler(cls_ctx, cnn_out)
         emb = cls_cnn_emb + cls_ctx if self.residial else cls_cnn_emb
