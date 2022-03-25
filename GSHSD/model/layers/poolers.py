@@ -16,7 +16,7 @@ class CrossAttentionPooling(nn.Module):
         # self.layer_norm_AT = nn.LayerNorm(in_size)
 
     def forward(self, cls_features, seq_features):
-        cls_features = cls_features.squeeze()
+        cls_features = cls_features.unsqueeze(dim=1)
         out = self.Attention(cls_features, seq_features, seq_features)
         return out.squeeze()
 
