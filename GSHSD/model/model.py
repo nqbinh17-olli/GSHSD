@@ -31,6 +31,7 @@ class TransformerEncoder(nn.Module):
                  cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, 
                  do_lower_case: bool = True,
+                 residial: bool = False, 
                  tokenizer_name_or_path : str = None, 
                  checkpoint_batch_size : int = 1024):
         super(TransformerEncoder, self).__init__()
@@ -52,6 +53,7 @@ class TransformerEncoder(nn.Module):
         #configs define
         self.config_keys = ['max_seq_length', 'do_lower_case', 'checkpoint_batch_size']
         self.do_lower_case = do_lower_case
+        self.residial = residial
         self.checkpoint_batch_size = checkpoint_batch_size
         #No max_seq_length set. Try to infer from model
         self.max_seq_length = self.__get_max_seq_length(max_seq_length) # Do nothing
@@ -123,10 +125,10 @@ class TransformerEncoder(nn.Module):
             config = json.load(fIn)
         return TransformerEncoder(model_name_or_path=input_path, **config)
     
-    def forward(self, features, residual=False):
+    def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
         cls_ctx = transformer_out[:,0,:]
         cnn_out = self.CNN_model(embedding_output)
         cls_cnn_emb = self.cross_pooler(cls_ctx, cnn_out)
-        emb = cls_cnn_emb + cls_ctx if residual else cls_cnn_emb
+        emb = cls_cnn_emb + cls_ctx if self.residial else cls_cnn_emb
         return self.classifier(emb), emb
