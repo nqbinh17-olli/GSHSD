@@ -123,9 +123,10 @@ class TransformerEncoder(nn.Module):
             config = json.load(fIn)
         return TransformerEncoder(model_name_or_path=input_path, **config)
     
-    def forward(self, features):
+    def forward(self, features, residual=False):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
         cls_ctx = transformer_out[:,0,:]
         cnn_out = self.CNN_model(embedding_output)
-        emb = self.cross_pooler(cls_ctx, cnn_out)
+        cls_cnn_emb = self.cross_pooler(cls_ctx, cnn_out)
+        emb = cls_cnn_emb + cls_ctx if residual else cls_cnn_emb
         return self.classifier(emb), emb
