@@ -17,7 +17,7 @@ class CenterLoss(nn.Module):
         loss = torch.clamp(dist, min=1e-12, max=1e+12).mean(dim=-1)
         return loss
 
-class FocalLoss(nn.Module):
+class CBFocalLoss(nn.Module):
     """ Focal Loss, as described in https://arxiv.org/abs/1708.02002.
     It is essentially an enhancement to cross entropy loss and is
     useful for classification tasks when there is a large class imbalance.
@@ -29,34 +29,30 @@ class FocalLoss(nn.Module):
     """
 
     def __init__(self,
-                 alpha: Optional[Tensor] = None,
+                 classes_samples_number: Optional[Tensor] = None,
+                 beta:float = 0.99,
                  gamma: float = 0.,
                  reduction: str = 'mean',
                  ignore_index: int = -100):
-        """Constructor.
-        Args:
-            alpha (Tensor, optional): Weights for each class. Defaults to None.
-            gamma (float, optional): A constant, as described in the paper.
-                Defaults to 0.
-            reduction (str, optional): 'mean', 'sum' or 'none'.
-                Defaults to 'mean'.
-            ignore_index (int, optional): class label to ignore.
-                Defaults to -100.
-        """
+        super(CBFocalLoss, self).__init__()
+        
         if reduction not in ('mean', 'sum', 'none'):
             raise ValueError(
                 'Reduction must be one of: "mean", "sum", "none".')
 
-        super().__init__()
-        self.alpha = alpha
+        if classes_samples_number != None:
+            self.weights = (1-beta)/(1 - beta**classes_samples_number)
+        else:
+            self.weights = None
+        
         self.gamma = gamma
         self.ignore_index = ignore_index
         self.reduction = reduction
 
-        self.nll_loss = nn.NLLLoss(weight=alpha, reduction='none', ignore_index=ignore_index)
+        self.nll_loss = nn.NLLLoss(weight=self.weights, reduction='none', ignore_index=ignore_index)
 
     def __repr__(self):
-        arg_keys = ['alpha', 'gamma', 'ignore_index', 'reduction']
+        arg_keys = ['weights', 'beta', 'gamma', 'ignore_index', 'reduction']
         arg_vals = [self.__dict__[k] for k in arg_keys]
         arg_strs = [f'{k}={v}' for k, v in zip(arg_keys, arg_vals)]
         arg_str = ', '.join(arg_strs)
