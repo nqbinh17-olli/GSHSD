@@ -2,6 +2,9 @@ from typing import Optional
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch import Tensor
+
+
 
 class CenterLoss(nn.Module):
     def __init__(self, num_class, num_feature):
@@ -13,10 +16,6 @@ class CenterLoss(nn.Module):
         dist = (x-center).pow(2).sum(dim=-1)
         loss = torch.clamp(dist, min=1e-12, max=1e+12).mean(dim=-1)
         return loss
-
-import torch
-from torch import Tensor
-
 
 class FocalLoss(nn.Module):
     """ Focal Loss, as described in https://arxiv.org/abs/1708.02002.
