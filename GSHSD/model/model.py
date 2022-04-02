@@ -31,11 +31,20 @@ class TransformerEncoder(nn.Module):
                  cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, 
                  do_lower_case: bool = True,
+                 conv_branch: bool = False,
+                 cross_attention: bool = False,
                  residial: bool = False, 
                  tokenizer_name_or_path : str = None, 
                  checkpoint_batch_size : int = 1024):
         super(TransformerEncoder, self).__init__()
-        
+        #configs define
+        self.config_keys = ['max_seq_length', 'do_lower_case', 'checkpoint_batch_size']
+        self.do_lower_case = do_lower_case
+        self.checkpoint_batch_size = checkpoint_batch_size
+        self.residial = residial
+        self.conv_branch = conv_branch
+        self.cross_attention = cross_attention
+
         config = AutoConfig.from_pretrained(model_name_or_path, **model_args, cache_dir=cache_dir)
         tokenizer_path = tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path
         self.sent_encoder = AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir)
@@ -43,18 +52,15 @@ class TransformerEncoder(nn.Module):
         self.drop_out_trans = nn.Dropout(dropout_rate)
         emb_size = self.get_word_embedding_dimension()
 
-        self.CNN_model = ConvBlock(emb_size, emb_size)
-        self.cross_pooler = CrossAttentionPooling(emb_size)
+        if self.cross_attention:
+            if self.conv_branch:
+                self.CNN_model = ConvBlock(emb_size, emb_size)
+            self.cross_pooler = CrossAttentionPooling(emb_size)
         
         self.classifier = nn.Linear(emb_size, classes_num)
         nn.init.xavier_normal_(self.classifier.weight)
         nn.init.constant_(self.classifier.bias, 0)
 
-        #configs define
-        self.config_keys = ['max_seq_length', 'do_lower_case', 'checkpoint_batch_size']
-        self.do_lower_case = do_lower_case
-        self.residial = residial
-        self.checkpoint_batch_size = checkpoint_batch_size
         #No max_seq_length set. Try to infer from model
         self.max_seq_length = self.__get_max_seq_length(max_seq_length) # Do nothing
 
@@ -128,7 +134,16 @@ class TransformerEncoder(nn.Module):
     def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
         cls_ctx = transformer_out[:,0,:].squeeze()
-        cnn_out = self.CNN_model(embedding_output)
-        cls_cnn_emb = self.cross_pooler(cls_ctx, cnn_out)
-        emb = cls_cnn_emb + cls_ctx if self.residial else cls_cnn_emb
+        
+        if self.cross_attention:
+            if self.conv_branch:
+                token_base_out = self.CNN_model(embedding_output) # cnn_out
+            else:
+                token_base_out = transformer_out
+            
+            global_local_emb = self.cross_pooler(cls_ctx, token_base_out)
+            emb = global_local_emb + cls_ctx if self.residial else global_local_emb
+        else:
+            emb = cls_ctx
+        
         return self.classifier(emb), emb
