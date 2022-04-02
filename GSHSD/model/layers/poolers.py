@@ -19,7 +19,7 @@ class CrossAttentionPooling(nn.Module):
         cls_features = cls_features.unsqueeze(dim=1)
         seq_features = self.FFN1(seq_features, weights_factor=0.5)
         out = self.Attention(cls_features, seq_features, seq_features)
-        out = self.FFN1(out, weights_factor=0.5)
+        out = self.FFN2(out, weights_factor=0.5)
         return out.squeeze()
 
 # %%
