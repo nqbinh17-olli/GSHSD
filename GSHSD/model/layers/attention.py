@@ -7,6 +7,7 @@ class SelfAttention(nn.Module):
     def __init__(self, in_size: int = 768, hidden_size: int = 768*2, head_num:int = 8) -> None:
         super(SelfAttention, self).__init__()
         self.head_num = head_num
+        self.in_size = in_size
         self.K = nn.Linear(in_size , hidden_size)
         self.Q = nn.Linear(in_size , hidden_size)
         self.V = nn.Linear(in_size , hidden_size)
@@ -39,8 +40,8 @@ class SelfAttention(nn.Module):
                 .reshape(batch_size, seq_len, out_dim)
 
     def extra_repr(self):
-        return 'in_features={}, head_num={}, bias={}, activation={}'.format(
-            self.in_features, self.head_num, self.bias, self.activation,
+        return 'in_size={}, head_num={}'.format(
+            self.in_size, self.head_num,
         )
 
     def forward(self, q, k, v):
