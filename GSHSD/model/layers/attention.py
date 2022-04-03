@@ -1,5 +1,5 @@
+import torch
 from torch import nn
-
 from model.operators import dot_attention_function
 
 
@@ -25,14 +25,14 @@ class SelfAttention(nn.Module):
 
     def _reshape_to_batches(self, x):
         batch_size, seq_len, in_feature = x.size()
-        sub_dim = in_feature // self.head_num
+        sub_dim = torch.div(in_feature, self.head_num, rounding_mode='trunc')
         return x.reshape(batch_size, seq_len, self.head_num, sub_dim)\
                 .permute(0, 2, 1, 3)\
                 .reshape(batch_size * self.head_num, seq_len, sub_dim)
 
     def _reshape_from_batches(self, x):
         batch_size, seq_len, in_feature = x.size()
-        batch_size //= self.head_num
+        batch_size = torch.div(batch_size, self.head_num, rounding_mode='trunc')
         out_dim = in_feature * self.head_num
         return x.reshape(batch_size, self.head_num, seq_len, in_feature)\
                 .permute(0, 2, 1, 3)\
