@@ -14,7 +14,7 @@ class ConvBlock(nn.Module):
         self.conv_3 = nn.Conv1d(d_model, hidden_size, 3, stride)
         self.conv_4 = nn.Conv1d(d_model, hidden_size, 4, stride)
         # Activation
-        self.relu = nn.ReLU()
+        self.relu = nn.functional.silu
         # Max pooling layers definition
         self.local_pool = nn.MaxPool1d(3, 3)
         
@@ -31,7 +31,6 @@ class ConvBlock(nn.Module):
         if bias:
             nn.init.constant_(layer.bias, 0)
        
-    
     def forward(self, embeddings, chanel_last=True):
 
         embeddings_ = embeddings.transpose(1, 2).contiguous() if chanel_last else embeddings

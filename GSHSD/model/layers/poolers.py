@@ -11,16 +11,18 @@ class CrossAttentionPooling(nn.Module):
         super(CrossAttentionPooling, self).__init__()
        
         self.FFN1= FFN(in_size)
-        self.Attention = SelfAttention(in_size=in_size, hidden_size=in_size)
+        self.Attention = SelfAttention(in_size=in_size, hidden_size=in_size, head_num=8)
         self.FFN2= FFN(in_size)
+        self.activation = nn.functional.silu
         # self.layer_norm_AT = nn.LayerNorm(in_size)
 
     def forward(self, cls_features, seq_features):
         cls_features = cls_features.unsqueeze(dim=1)
         seq_features = self.FFN1(seq_features, weights_factor=0.5)
         out = self.Attention(cls_features, seq_features, seq_features)
+        out = self.activation(out.squeeze())
         out = self.FFN2(out, weights_factor=0.5)
-        return out.squeeze()
+        return out
 
 # %%
 class SqueezeAttentionPooling(nn.Module):

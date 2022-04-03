@@ -50,6 +50,7 @@ class TransformerEncoder(nn.Module):
         self.sent_encoder = AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, cache_dir=cache_dir, **tokenizer_args)
         self.drop_out_trans = nn.Dropout(dropout_rate)
+        self.drop_out_pooler = nn.Dropout(dropout_rate)
         emb_size = self.get_word_embedding_dimension()
 
         if self.cross_attention:
@@ -146,4 +147,5 @@ class TransformerEncoder(nn.Module):
         else:
             emb = cls_ctx
         
+        emb = self.drop_out_pooler(emb)
         return self.classifier(emb), emb
