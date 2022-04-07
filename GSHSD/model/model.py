@@ -135,6 +135,7 @@ class TransformerEncoder(nn.Module):
     def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
         cls_ctx = transformer_out[:,0,:].squeeze()
+        transformer_out = transformer_out * features['attention_mask'].unsqueeze(dim=-1)
         
         if self.cross_attention:
             if self.conv_branch:
