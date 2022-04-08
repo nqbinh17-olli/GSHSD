@@ -139,7 +139,9 @@ class TransformerEncoder(nn.Module):
         
         if self.cross_attention:
             if self.conv_branch:
-                embedding_output = embedding_output * features['attention_mask'].unsqueeze(dim=-1)
+                embedding_output = torch.einsum("bsh,bs->bsh",
+                                                embedding_output,
+                                                features['attention_mask'])
                 token_base_out = self.CNN_model(embedding_output) # cnn_out
             else:
                 token_base_out = transformer_out
