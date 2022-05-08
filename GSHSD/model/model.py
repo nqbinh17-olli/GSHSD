@@ -58,7 +58,8 @@ class TransformerEncoder(nn.Module):
                 self.CNN_model = ConvBlock(emb_size, emb_size)
             self.cross_pooler = CrossAttentionPooling(emb_size)
         
-        self.classifier = nn.Linear(emb_size, classes_num)
+        self.classifier = nn.Sequential(nn.Linear(emb_size, 1024),
+                                        nn.Linear(1024, classes_num))
         nn.init.xavier_normal_(self.classifier.weight)
         nn.init.constant_(self.classifier.bias, 0)
 
