@@ -111,4 +111,4 @@ class TransformerEncoder(nn.Module):
         emb = self.drop_out_pooler(cls_ctx)
         x = self.classifier_hidden(emb)
         x = F.relu(x)
-        return self.classifier_out(emb), emb
+        return self.classifier_out(x), emb
