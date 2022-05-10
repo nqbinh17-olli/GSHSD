@@ -32,16 +32,12 @@ class TransformerEncoder(nn.Module):
                  model_args: Dict = {}, 
                  cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, 
-                 conv_branch: bool = False,
-                 residial: bool = False, 
                  tokenizer_name_or_path : str = None, 
                  checkpoint_batch_size : int = 1024):
         super(TransformerEncoder, self).__init__()
         #configs define
         self.config_keys = ['max_seq_length', 'do_lower_case', 'checkpoint_batch_size']
         self.checkpoint_batch_size = checkpoint_batch_size
-        self.residial = residial
-        self.conv_branch = conv_branch
 
         config = AutoConfig.from_pretrained(model_name_or_path, **model_args, cache_dir=cache_dir)
         tokenizer_path = tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path
@@ -51,7 +47,7 @@ class TransformerEncoder(nn.Module):
         self.drop_out_pooler = nn.Dropout(dropout_rate)
         emb_size = self.get_word_embedding_dimension()
         
-        self.classifier_hidden = nn.Linear(emb_size, classifier_hidden_size),
+        self.classifier_hidden = nn.Linear(emb_size, classifier_hidden_size)
         self.classifier_out = nn.Linear(classifier_hidden_size, classes_num)
         nn.init.xavier_normal_(self.classifier_hidden.weight)
         nn.init.constant_(self.classifier_hidden.bias, 0)
