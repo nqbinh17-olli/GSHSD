@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 from torch.utils import checkpoint
 from transformers import AutoModel, AutoTokenizer, AutoConfig
 
@@ -24,26 +25,23 @@ class TransformerEncoder(nn.Module):
     :param tokenizer_name_or_path: Name or path of the tokenizer. When None, then model_name_or_path is used
     """
     def __init__(self, model_name_or_path: str,
-                 classes_num: int,  
+                 classes_num: int,
+                 classifier_hidden_size:int = 1024,
                  max_seq_length: Optional[int] = None,
                  dropout_rate:float = 0.2,
                  model_args: Dict = {}, 
                  cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, 
-                 do_lower_case: bool = True,
                  conv_branch: bool = False,
-                 cross_attention: bool = False,
                  residial: bool = False, 
                  tokenizer_name_or_path : str = None, 
                  checkpoint_batch_size : int = 1024):
         super(TransformerEncoder, self).__init__()
         #configs define
         self.config_keys = ['max_seq_length', 'do_lower_case', 'checkpoint_batch_size']
-        self.do_lower_case = do_lower_case
         self.checkpoint_batch_size = checkpoint_batch_size
         self.residial = residial
         self.conv_branch = conv_branch
-        self.cross_attention = cross_attention
 
         config = AutoConfig.from_pretrained(model_name_or_path, **model_args, cache_dir=cache_dir)
         tokenizer_path = tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path
@@ -52,25 +50,19 @@ class TransformerEncoder(nn.Module):
         self.drop_out_trans = nn.Dropout(dropout_rate)
         self.drop_out_pooler = nn.Dropout(dropout_rate)
         emb_size = self.get_word_embedding_dimension()
-
-        if self.cross_attention:
-            if self.conv_branch:
-                self.CNN_model = ConvBlock(emb_size, emb_size)
-            self.cross_pooler = CrossAttentionPooling(emb_size)
         
-        self.classifier = nn.Sequential(nn.Linear(emb_size, 1024),
-                                        nn.Linear(1024, classes_num))
-        nn.init.xavier_normal_(self.classifier.weight)
-        nn.init.constant_(self.classifier.bias, 0)
+        self.classifier_hidden = nn.Linear(emb_size, classifier_hidden_size),
+        self.classifier_out = nn.Linear(classifier_hidden_size, classes_num)
+        nn.init.xavier_normal_(self.classifier_hidden.weight)
+        nn.init.constant_(self.classifier_hidden.bias, 0)
+        nn.init.xavier_normal_(self.classifier_out.weight)
+        nn.init.constant_(self.classifier_out.bias, 0)
 
         #No max_seq_length set. Try to infer from model
         self.max_seq_length = self.__get_max_seq_length(max_seq_length) # Do nothing
 
         if tokenizer_name_or_path is not None:
             self.sent_encoder.config.tokenizer_class = self.tokenizer.__class__.__name__
-    
-    def __repr__(self):
-        return "Transformer({}) with Transformer model: {} ".format(self.get_config_dict(), self.sent_encoder.__class__.__name__)
     
     def __get_max_seq_length(self, max_seq_length):
         if max_seq_length is None:
@@ -82,9 +74,6 @@ class TransformerEncoder(nn.Module):
     def __is_model_max_length_avaible(self):
         tmp = hasattr(self.sent_encoder, "config") and hasattr(self.sent_encoder.config, "max_position_embeddings")
         return tmp and hasattr(self.tokenizer, "model_max_length")
-    
-    def get_config_dict(self):
-        return {key: self.__dict__[key] for key in self.config_keys}
     
     def __partial_encode(self, *inputs):
         """ define function for checkpointing
@@ -117,40 +106,13 @@ class TransformerEncoder(nn.Module):
         
     def get_word_embedding_dimension(self) -> int:
         return self.sent_encoder.config.hidden_size
-        
-    def save(self, output_path: str):
-        self.sent_encoder.save_pretrained(output_path)
-        self.tokenizer.save_pretrained(output_path)
-        with open(os.path.join(output_path, 'config.json'), 'w') as fOut:
-            json.dump(self.get_config_dict(), fOut, indent=2)
-
-    @staticmethod
-    def load(input_path: str):
-        sbert_config_path = os.path.join(input_path, 'config.json')
-        assert os.path.exists(sbert_config_path), f"Can not find \"config.json\" from {input_path}"
-        
-        with open(sbert_config_path) as fIn:
-            config = json.load(fIn)
-        return TransformerEncoder(model_name_or_path=input_path, **config)
     
     def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
         cls_ctx = transformer_out[:,0,:].squeeze()
         transformer_out = transformer_out 
         
-        if self.cross_attention:
-            if self.conv_branch:
-                embedding_output = torch.einsum("bsh,bs->bsh",
-                                                embedding_output,
-                                                features['attention_mask'])
-                token_base_out = self.CNN_model(embedding_output) # cnn_out
-            else:
-                token_base_out = transformer_out
-            
-            global_local_emb = self.cross_pooler(cls_ctx, token_base_out)
-            emb = global_local_emb + cls_ctx if self.residial else global_local_emb
-        else:
-            emb = cls_ctx
-        
-        emb = self.drop_out_pooler(emb)
-        return self.classifier(emb), emb
+        emb = self.drop_out_pooler(cls_ctx)
+        x = self.classifier_hidden(emb)
+        x = F.relu(x)
+        return self.classifier_out(emb), emb
