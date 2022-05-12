@@ -25,6 +25,20 @@ class CrossAttentionPooling(nn.Module):
         return out
 
 # %%
+class AttentionPooling(nn.Module):
+    def __init__(self, in_size: int = 768, hidden_size: int = 512) -> None:
+        super().__init__()
+        self.W = nn.Linear(in_size, hidden_size)
+        self.V = nn.Linear(hidden_size, 1)
+        
+    def forward(self, features):
+        att = torch.tanh(self.W(features))
+        score = self.V(att) # [batch, seq_len, 1]
+        attention_weights = torch.softmax(score, dim=1)
+        context_vector = attention_weights * features
+        context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
+        return context_vector
+# %%
 class SqueezeAttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, squeeze_factor: int = 6) -> None:
         super(SqueezeAttentionPooling, self).__init__()

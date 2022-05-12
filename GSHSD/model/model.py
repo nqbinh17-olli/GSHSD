@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from torch.utils import checkpoint
 from transformers import AutoModel, AutoTokenizer, AutoConfig
 
-from model.layers.poolers import SqueezeAttentionPooling, CrossAttentionPooling
+from model.layers.poolers import SqueezeAttentionPooling, CrossAttentionPooling, AttentionPooling
 from model.layers.CNN import ConvBlock
 
 
@@ -43,9 +43,10 @@ class TransformerEncoder(nn.Module):
         tokenizer_path = tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path
         self.sent_encoder = AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, cache_dir=cache_dir, **tokenizer_args)
-        self.drop_out_trans = nn.Dropout(dropout_rate)
-        self.drop_out_pooler = nn.Dropout(dropout_rate)
         emb_size = self.get_word_embedding_dimension()
+
+        self.pooler = AttentionPooling(emb_size, hidden_size=emb_size*4)
+        self.drop_out_pooler = nn.Dropout(dropout_rate)
         
         self.classifier_hidden = nn.Linear(emb_size, classifier_hidden_size)
         self.classifier_out = nn.Linear(classifier_hidden_size, classes_num)
@@ -97,18 +98,16 @@ class TransformerEncoder(nn.Module):
                 trans_outs.append(transformer_out_b)
             trans_outs = torch.cat(trans_outs, dim=0)
           
-        transformer_out = self.drop_out_trans(trans_outs)
-        return embedding_output, transformer_out # [bs, dim] X 2
+        return embedding_output, trans_outs # [bs, dim] X 2
         
     def get_word_embedding_dimension(self) -> int:
         return self.sent_encoder.config.hidden_size
     
     def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
-        cls_ctx = transformer_out[:,0,:].squeeze()
-        transformer_out = transformer_out 
-        
-        emb = self.drop_out_pooler(cls_ctx)
+        # cls_ctx = transformer_out[:,0,:].squeeze()        
+        emb = self.pooler(transformer_out)
+        emb = self.drop_out_pooler(emb)
         x = self.classifier_hidden(emb)
         x = F.relu(x)
         return self.classifier_out(x), emb
