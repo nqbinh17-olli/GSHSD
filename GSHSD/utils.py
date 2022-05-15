@@ -12,8 +12,6 @@ def seed_everything(seed: int):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
     
-seed_everything(42)
-
 def get_device():
     if torch.cuda.is_available():
         device = torch.device(f"cuda:{torch.cuda.current_device()}")
