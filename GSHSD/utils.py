@@ -1,6 +1,18 @@
 import numpy as np
 from decorators import timer, debug
 import torch
+import random, os
+
+def seed_everything(seed: int):    
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    
+seed_everything(42)
 
 def get_device():
     if torch.cuda.is_available():
