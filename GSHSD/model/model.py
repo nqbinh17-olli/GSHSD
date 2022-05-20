@@ -26,6 +26,7 @@ class TransformerEncoder(nn.Module):
     """
     def __init__(self, model_name_or_path: str,
                  classes_num: int,
+                 pooler_type: str,
                  classifier_hidden_size:int = 1024,
                  max_seq_length: Optional[int] = None,
                  dropout_rate:float = 0.2,
@@ -33,7 +34,8 @@ class TransformerEncoder(nn.Module):
                  cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, 
                  tokenizer_name_or_path : str = None, 
-                 checkpoint_batch_size : int = 1024):
+                 checkpoint_batch_size : int = 1024,
+                 ):
         super(TransformerEncoder, self).__init__()
         #configs define
         self.config_keys = ['max_seq_length', 'do_lower_case', 'checkpoint_batch_size']
@@ -45,7 +47,14 @@ class TransformerEncoder(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, cache_dir=cache_dir, **tokenizer_args)
         emb_size = self.get_word_embedding_dimension()
 
-        self.pooler = AttentionPooling(emb_size, hidden_size=emb_size*4)
+        if pooler_type not in ['cls', 'attn_pooling']:
+            raise ValueError(f'pooler_type: {pooler_type} is not supported!')
+            
+        if pooler_type == 'cls':
+            self.pooler = lambda x: x[:,0,:].squeeze()
+        elif pooler_type == 'attn_pooling':
+         self.pooler = AttentionPooling(emb_size, hidden_size=emb_size*4)
+
         self.drop_out_pooler = nn.Dropout(dropout_rate)
         
         self.classifier_hidden = nn.Linear(emb_size, classifier_hidden_size)
@@ -105,7 +114,7 @@ class TransformerEncoder(nn.Module):
     
     def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
-        # cls_ctx = transformer_out[:,0,:].squeeze()        
+        # cls_ctx = transformer_out[:,0,:].squeeze()
         emb = self.pooler(transformer_out)
         emb = self.drop_out_pooler(emb)
         x = self.classifier_hidden(emb)
