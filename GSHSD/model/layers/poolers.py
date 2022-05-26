@@ -79,7 +79,7 @@ class AttentionPooling(nn.Module):
 
     def forward(self, features):
         # Multi-head & Self Attention Style Implementation
-        features = features * self.scale
+        #features = features * self.scale
         batch, seq_len, _ = features.shape
         Q = self.W_Q(features).view(batch, seq_len, self.heads, -1).transpose(1, 2)
         K = self.W_K(features).view(batch, seq_len, self.heads, -1).transpose(1, 2)
