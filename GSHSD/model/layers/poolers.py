@@ -51,17 +51,17 @@ class AttentionPooling(nn.Module):
         self.heads = 8
         assert in_size % self.heads == 0 
         assert hidden_size % self.heads == 0 
-        self.W = nn.Linear(in_size, hidden_size)
+        self.W_Q = nn.Linear(in_size, hidden_size)
+        self.W_K = nn.Linear(in_size, hidden_size)
         self.W_out = nn.Linear(in_size, in_size)
         self.scale = in_size ** -0.5
         self.V = nn.Linear(hidden_size // self.heads, 1)
         self.activation_dropout = nn.Dropout(0.1)
 
-        nn.init.xavier_normal_(self.W.weight)
-        nn.init.constant_(self.W.bias, 0)
+        nn.init.xavier_normal_(self.W_K.weight)
+        nn.init.xavier_normal_(self.W_Q.weight)
         nn.init.xavier_normal_(self.W_out.weight)
         nn.init.xavier_normal_(self.V.weight)
-        nn.init.constant_(self.V.bias, 0)
         
     # def ori_forward(self, features):
     #     residual = features
