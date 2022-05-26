@@ -48,10 +48,13 @@ class CrossAttentionPooling(nn.Module):
 class AttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, hidden_size: int = 512) -> None:
         super().__init__()
+        self.heads = 8
+        assert in_size % self.heads == 0 
+        assert hidden_size % self.heads == 0 
         self.W = nn.Linear(in_size, hidden_size)
         self.W_out = nn.Linear(in_size, in_size)
         self.scale = in_size ** -0.5
-        self.V = nn.Linear(hidden_size, 1)
+        self.V = nn.Linear(hidden_size // self.heads, 1)
         self.activation_dropout = nn.Dropout(0.1)
 
         nn.init.xavier_normal_(self.W.weight)
@@ -60,19 +63,38 @@ class AttentionPooling(nn.Module):
         nn.init.xavier_normal_(self.V.weight)
         nn.init.constant_(self.V.bias, 0)
         
+    # def ori_forward(self, features):
+    #     residual = features
+    #     features = features * self.scale
+
+    #     att = torch.tanh(self.W(features))
+    #     att = self.activation_dropout(att)
+    #     score = self.V(att) # [batch, seq_len, 1]
+
+    #     attention_weights = torch.softmax(score, dim=1)
+    #     context_vector = attention_weights * residual
+    #     context_vector = self.W_out(context_vector)
+    #     context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
+    #     return context_vector
+
     def forward(self, features):
-        residual = features
+        # Multi-head & Self Attention Style Implementation
         features = features * self.scale
+        batch, seq_len, _ = features.shape
+        Q = self.W_Q(features).view(batch, seq_len, self.heads, -1).transpose(1, 2)
+        K = self.W_K(features).view(batch, seq_len, self.heads, -1).transpose(1, 2)
 
-        att = torch.tanh(self.W(features)) # Normalize
+        att = torch.tanh(Q) # [batch, heads, seq_len, head_dim]
         att = self.activation_dropout(att)
-        score = self.V(att) # [batch, seq_len, 1]
+        score = self.V(att) # [batch, heads, seq_len, 1]
 
-        attention_weights = torch.softmax(score, dim=1)
-        context_vector = attention_weights * residual
-        context_vector = self.W_out(context_vector)
+        attention_weights = torch.softmax(score, dim=2)
+        attention_weights = self.activation_dropout(attention_weights)
+        context_vector = attention_weights * K # [batch, heads, seq_len, head_dim]
+        context_vector = context_vector.transpose(1, 2).contiguous().view(batch, seq_len, -1)
         context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
-        return context_vector
+        context_vector = self.W_out(context_vector)
+        return context_vector      
 
 class SqueezeAttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, squeeze_factor: int = 6) -> None:
