@@ -53,7 +53,7 @@ class AttentionPooling(nn.Module):
         assert hidden_size % self.heads == 0 
         self.W_Q = nn.Linear(in_size, hidden_size)
         self.W_K = nn.Linear(in_size, hidden_size)
-        self.W_out = nn.Linear(in_size, in_size)
+        self.W_out = nn.Linear(hidden_size, in_size)
         self.scale = in_size ** -0.5
         self.V = nn.Linear(hidden_size // self.heads, 1)
         self.activation_dropout = nn.Dropout(0.1)
