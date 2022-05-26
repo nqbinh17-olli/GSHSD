@@ -62,12 +62,12 @@ class AttentionPooling(nn.Module):
         
     def forward(self, features):
         residual = features
-        features = features * scale
+        features = features * self.scale
 
         att = torch.tanh(self.W(features)) # Normalize
         att = self.activation_dropout(att)
         score = self.V(att) # [batch, seq_len, 1]
-        
+
         attention_weights = torch.softmax(score, dim=1)
         context_vector = attention_weights * residual
         context_vector = self.W_out(context_vector)
