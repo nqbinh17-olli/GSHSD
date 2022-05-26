@@ -1,4 +1,5 @@
 #%%
+from matplotlib import scale
 import torch
 from torch import nn
 from model.layers.FFN import FFN
@@ -43,25 +44,36 @@ class CrossAttentionPooling(nn.Module):
 #         context_vector = attention_weights * features
 #         context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
 #         return context_vector
-# %%
+
 class AttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, hidden_size: int = 512) -> None:
         super().__init__()
         self.W = nn.Linear(in_size, hidden_size)
+        self.W_out = nn.Linear(in_size, in_size)
+        self.scale = in_size ** -0.5
         self.V = nn.Linear(hidden_size, 1)
+        self.activation_dropout = nn.Dropout(0.1)
+
         nn.init.xavier_normal_(self.W.weight)
         nn.init.constant_(self.W.bias, 0)
+        nn.init.xavier_normal_(self.W_out.weight)
         nn.init.xavier_normal_(self.V.weight)
         nn.init.constant_(self.V.bias, 0)
         
     def forward(self, features):
-        att = torch.tanh(self.W(features))
+        residual = features
+        features = features * scale
+
+        att = torch.tanh(self.W(features)) # Normalize
+        att = self.activation_dropout(att)
         score = self.V(att) # [batch, seq_len, 1]
+        
         attention_weights = torch.softmax(score, dim=1)
-        context_vector = attention_weights * features
+        context_vector = attention_weights * residual
+        context_vector = self.W_out(context_vector)
         context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
         return context_vector
-# %%
+
 class SqueezeAttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, squeeze_factor: int = 6) -> None:
         super(SqueezeAttentionPooling, self).__init__()
