@@ -57,6 +57,7 @@ class AttentionPooling(nn.Module):
         self.scale = in_size ** -0.5
         self.V = nn.Linear(hidden_size // self.heads, 1)
         self.activation_dropout = nn.Dropout(0.1)
+        self.softmax_dropout = nn.Dropout(0.1)
 
         nn.init.xavier_normal_(self.W_K.weight)
         nn.init.xavier_normal_(self.W_Q.weight)
@@ -90,7 +91,7 @@ class AttentionPooling(nn.Module):
         score = self.V(att) # [batch, heads, seq_len, 1]
 
         attention_weights = torch.softmax(score, dim=2)
-        attention_weights = self.activation_dropout(attention_weights)
+        attention_weights = self.softmax_dropout(attention_weights)
         context_vector = attention_weights * K # [batch, heads, seq_len, head_dim]
         context_vector = context_vector.transpose(1, 2).contiguous().view(batch, seq_len, -1)
         context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
