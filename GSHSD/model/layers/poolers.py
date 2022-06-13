@@ -106,7 +106,7 @@ class TaskBasedPooling(nn.Module):
         self.fc_in = nn.Linear(in_size, in_size)
         self.layer_norm = nn.LayerNorm(in_size)
         self.W_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, in_size))
-        self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels))
+        self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, 1))
         nn.init.xavier_normal_(self.W_knowledge)
         nn.init.xavier_normal_(self.P_knowledge)
         self.xavier_init(self.fc_in)
@@ -122,7 +122,7 @@ class TaskBasedPooling(nn.Module):
         features = self.layer_norm(features)
         features = self.fc_in(features) # (batch_size, seq_len, dim)
 
-        knowledge_based = torch.matmul(self.W_knowledge.transpose(0, 1), torch.sigmoid(self.P_knowledge)) # (dim)
+        knowledge_based = torch.matmul(self.W_knowledge.transpose(0, 1), torch.sigmoid(self.P_knowledge)).squeeze() # (dim)
         knowledge_based = knowledge_based.unsqueeze(0).unsqueeze(0).expand(features.size(0), -1, -1) # (batch_size, 1, dim)
         attn_knowledge = torch.softmax(features @ knowledge_based.transpose(1, 2), dim = -1) # (batch_size, seq_len, 1)
         # attention score based on Knowledge
