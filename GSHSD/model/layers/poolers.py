@@ -102,11 +102,11 @@ class AttentionPooling(nn.Module):
 
 class TaskBasedPooling(nn.Module):
     def __init__(self, in_size, knowledge_kernels = 3, heads = 12):
-        super().__init__()
+        super(TaskBasedPooling, self).__init__()
         self.fc_in = nn.Linear(in_size, in_size)
         self.layer_norm = nn.LayerNorm(in_size)
-        self.W_knowledge = nn.Parameter(knowledge_kernels, in_size)
-        self.P_knowledge = nn.Parameter(knowledge_kernels)
+        self.W_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, in_size))
+        self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels))
 
     def xavier_init(self, layer):
         nn.init.xavier_normal_(layer.weight)
