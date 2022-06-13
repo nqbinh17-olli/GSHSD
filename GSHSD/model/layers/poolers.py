@@ -107,13 +107,16 @@ class TaskBasedPooling(nn.Module):
         self.layer_norm = nn.LayerNorm(in_size)
         self.W_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, in_size))
         self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels))
+        nn.init.xavier_normal_(self.W_knowledge.weight)
+        nn.init.xavier_normal_(self.P_knowledge.weight)
+        self.xavier_init(self.fc_in)
 
     def xavier_init(self, layer):
         nn.init.xavier_normal_(layer.weight)
         nn.init.zeros_(layer.bias)
 
     def forward(self, features):
-        sent_embed = features[:,0,:] # CLS embedding as sentence embedding
+        #sent_embed = features[:,0,:] # CLS embedding as sentence embedding
         features = features[:,1:,:] # remove CLS
 
         features = self.layer_norm(features)
@@ -124,6 +127,7 @@ class TaskBasedPooling(nn.Module):
         attn_knowledge = torch.softmax(features @ knowledge_based.transpose(1, 2), dim = -1) # (batch_size, seq_len, 1)
         # attention score based on Knowledge
         knowledge_based_sent_embed = torch.sum(attn_knowledge * features, dim = 1)
+        
         return knowledge_based_sent_embed
 
 class SqueezeAttentionPooling(nn.Module):

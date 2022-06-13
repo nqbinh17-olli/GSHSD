@@ -57,7 +57,6 @@ class TransformerEncoder(nn.Module):
         elif pooler_type == 'taskbased_pooling':
             self.pooler = TaskBasedPooling(emb_size, knowledge_kernels = 12, heads = config.num_attention_heads)
 
-
         self.drop_out_pooler = nn.Dropout(dropout_rate)
         
         self.classifier_hidden = nn.Linear(emb_size, classifier_hidden_size)
