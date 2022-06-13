@@ -87,7 +87,7 @@ class AttentionPooling(nn.Module):
         K = self.W_K(features).view(batch, seq_len, self.heads, -1).transpose(1, 2)
 
         att = torch.tanh(Q) # [batch, heads, seq_len, head_dim]
-        att = self.activation_dropout(att)
+        #att = self.activation_dropout(att)
         score = self.V(att) # [batch, heads, seq_len, 1]
 
         attention_weights = torch.softmax(score, dim=2)

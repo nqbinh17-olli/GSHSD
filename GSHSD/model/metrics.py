@@ -1,6 +1,7 @@
 from typing import Tuple
 import torch
 import numpy as np
+from sklearn.metrics import confusion_matrix
 
 class F1Score:
     def __init__(self):
@@ -77,3 +78,50 @@ class F1Score:
             f1_score = torch.div(f1_score, len(labels.unique()))
             
         return f1_score, np.array(f1_all)
+
+def gmean(TP, FN, FP, TN):
+    return np.sqrt((TP/(TP+FN))*(TN/(TN+FP)))
+
+def cal_gmean(y_true, y_pred, return_type="mean"):
+    assert isinstance(return_type, str) and return_type.lower() in ["total", "harmonic_mean", "mean", "class"],\
+        f'return_type expected in ["total", "harmonic_mean", "mean", "class"], but got {return_type}'
+    
+    return_type = return_type.lower()
+    labels = set(y_true)
+    cf_metric = confusion_matrix(y_true, y_pred)
+    TP_list, FN_list, FP_list, TN_list = [],[],[],[]
+    gmean_list = []
+    for l in range(len(labels)):
+        TP = cf_metric[l,l]
+        FN = cf_metric[l,:].sum() - cf_metric[l,l]
+        FP = cf_metric[:,l].sum() - cf_metric[l,l]
+        TN = cf_metric.sum() - (TP + FN + FP)
+        TP_list.append(TP)
+        FN_list.append(FN)
+        FP_list.append(FP)
+        TN_list.append(TN)
+        gmean_list.append(gmean(TP, FN, FP, TN))
+    
+    if return_type == "total":
+        TP = np.array(TP_list).sum()
+        FN = np.array(FN_list).sum()
+        FP = np.array(FP_list).sum()
+        TN = np.array(TN_list).sum()
+        return gmean(TP, FN, FP, TN)
+
+    elif return_type == "harmonic_mean":
+        zero_check = ((np.array(gmean_list) == 0.0)*1.0).sum()
+        if zero_check >= 1:
+            return 0.0
+        invert = 1/np.array(gmean_list)
+        invert = invert.sum()
+        return len(gmean_list)/invert
+
+    elif return_type == "mean":
+        return np.array(gmean_list).mean()
+
+    elif return_type == "class":
+        result_dict = {}
+        for i, ln in enumerate(list(labels)):
+            result_dict[ln] = gmean_list[i]
+        return result_dict
