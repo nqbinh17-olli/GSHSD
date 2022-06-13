@@ -107,8 +107,8 @@ class TaskBasedPooling(nn.Module):
         self.layer_norm = nn.LayerNorm(in_size)
         self.W_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, in_size))
         self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels))
-        nn.init.xavier_normal_(self.W_knowledge.weight)
-        nn.init.xavier_normal_(self.P_knowledge.weight)
+        nn.init.xavier_normal_(self.W_knowledge)
+        nn.init.xavier_normal_(self.P_knowledge)
         self.xavier_init(self.fc_in)
 
     def xavier_init(self, layer):
