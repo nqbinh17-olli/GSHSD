@@ -121,7 +121,7 @@ class TaskBasedPooling(nn.Module):
 
         knowledge_based = torch.matmul(self.W_knowledge.transpose(0, 1), torch.sigmoid(self.P_knowledge)) # (dim)
         knowledge_based = knowledge_based.unsqueeze(0).unsqueeze(0).expand(features.size(0), -1, -1) # (batch_size, 1, dim)
-        attn_knowledge = torch.softmax(features @ knowledge_based.transpose(1, 2)) # (batch_size, seq_len, 1)
+        attn_knowledge = torch.softmax(features @ knowledge_based.transpose(1, 2), dim = -1) # (batch_size, seq_len, 1)
         # attention score based on Knowledge
         knowledge_based_sent_embed = torch.sum(attn_knowledge * features, dim = 1)
         return knowledge_based_sent_embed
