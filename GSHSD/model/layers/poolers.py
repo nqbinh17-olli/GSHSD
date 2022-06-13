@@ -45,6 +45,8 @@ class CrossAttentionPooling(nn.Module):
 #         context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
 #         return context_vector
 
+
+
 class AttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, hidden_size: int = 512) -> None:
         super().__init__()
@@ -98,6 +100,32 @@ class AttentionPooling(nn.Module):
         context_vector = self.W_out(context_vector)
         return context_vector      
 
+class TaskBasedPooling(nn.Module):
+    def __init__(self, in_size, knowledge_kernels = 3, heads = 12):
+        super().__init__()
+        self.fc_in = nn.Linear(in_size, in_size)
+        self.layer_norm = nn.LayerNorm(in_size)
+        self.W_knowledge = nn.Parameter(knowledge_kernels, in_size)
+        self.P_knowledge = nn.Parameter(knowledge_kernels)
+
+    def xavier_init(self, layer):
+        nn.init.xavier_normal_(layer.weight)
+        nn.init.zeros_(layer.bias)
+
+    def forward(self, features):
+        sent_embed = features[:,0,:] # CLS embedding as sentence embedding
+        features = features[:,1:,:] # remove CLS
+
+        features = self.layer_norm(features)
+        features = self.fc_in(features) # (batch_size, seq_len, dim)
+
+        knowledge_based = torch.matmul(self.W_knowledge.transpose(0, 1), torch.sigmoid(self.P_knowledge)) # (dim)
+        knowledge_based = knowledge_based.unsqueeze(0).unsqueeze(0).expand(features.size(0), -1, -1) # (batch_size, 1, dim)
+        attn_knowledge = torch.softmax(features @ knowledge_based.transpose(1, 2)) # (batch_size, seq_len, 1)
+        # attention score based on Knowledge
+        knowledge_based_sent_embed = torch.sum(attn_knowledge * features, dim = 1)
+        return knowledge_based_sent_embed
+
 class SqueezeAttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, squeeze_factor: int = 6) -> None:
         super(SqueezeAttentionPooling, self).__init__()
@@ -134,7 +162,7 @@ class SqueezeAttentionPooling(nn.Module):
         context_vector = self.layer_norm_AT(final_emb)
         return context_vector.mean(dim=1)
 
-# %%
+
 class SelectionPooling(nn.Module):
     def __init__(self, in_size: int = 768) -> None:
         super(SelectionPooling, self).__init__()
@@ -147,4 +175,3 @@ class SelectionPooling(nn.Module):
         context_vector = features*attention
         context_vector = torch.sum(context_vector, dim=1)
         return context_vector
-
