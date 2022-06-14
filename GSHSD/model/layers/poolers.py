@@ -147,8 +147,8 @@ class TaskBasedPooling(nn.Module):
         attn_knowledge = torch.softmax(attn_knowledge, dim=-1)
         # attention score based on Knowledge
         attn_knowledge = self.dropout_attn(attn_knowledge)
-        knowledge_based_sent_embed = torch.mean(attn_knowledge * Value, dim = 1)
-        knowledge_based_sent_embed = knowledge_based_sent_embed.transpose(1, 2).contiguous().view(batch_size, seq_len, -1)
+        knowledge_based_sent_embed = torch.mean(attn_knowledge * Value, dim = 2)
+        knowledge_based_sent_embed = knowledge_based_sent_embed.view(batch_size, -1)
         return self.fc_out(knowledge_based_sent_embed) + sent_embed
 
 class SqueezeAttentionPooling(nn.Module):
