@@ -68,9 +68,6 @@ class AttentionPooling(nn.Module):
         nn.init.xavier_normal_(self.V.weight)
         
     # def ori_forward(self, features):
-    #     residual = features
-    #     features = features * self.scale
-
     #     att = torch.tanh(self.W(features))
     #     att = self.activation_dropout(att)
     #     score = self.V(att) # [batch, seq_len, 1]
