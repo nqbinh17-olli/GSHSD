@@ -49,7 +49,7 @@ class TransformerEncoder(nn.Module):
 
         if pooler_type not in ['cls', 'attn_pooling', 'taskbased_pooling']:
             raise ValueError(f'pooler_type: {pooler_type} is not supported!')
-            
+        self.pooler_type = pooler_type
         if pooler_type == 'cls':
             self.pooler = lambda x: x[:,0,:].squeeze()
         elif pooler_type == 'attn_pooling':
@@ -117,7 +117,10 @@ class TransformerEncoder(nn.Module):
     def forward(self, features):
         embedding_output, transformer_out = self.__embed_sentences_checkpointed(features['input_ids'], features['attention_mask'])
         # cls_ctx = transformer_out[:,0,:].squeeze()
-        emb = self.pooler(transformer_out)
+        if self.pooler_type == 'taskbased_pooling':
+            emb = self.pooler(transformer_out, features['attention_mask'])
+        else:
+            emb = self.pooler(transformer_out)
         emb = self.drop_out_pooler(emb)
         x = self.classifier_hidden(emb)
         x = F.relu(x)

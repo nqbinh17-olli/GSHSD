@@ -103,32 +103,52 @@ class AttentionPooling(nn.Module):
 class TaskBasedPooling(nn.Module):
     def __init__(self, in_size, knowledge_kernels = 3, heads = 12):
         super(TaskBasedPooling, self).__init__()
-        self.fc_in = nn.Linear(in_size, in_size)
+        self.heads = heads
+        assert in_size % heads == 0
+        self.head_dim = heads // in_size
+        self.fc_key = nn.Linear(in_size, in_size)
+        self.fc_value = nn.Linear(in_size, in_size)
+        self.fc_query = nn.Linear(in_size, in_size)
+        self.fc_out = nn.Linear(in_size, in_size)
         self.layer_norm = nn.LayerNorm(in_size)
         self.W_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, in_size))
         self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, 1))
+        self.dropout_attn = nn.Dropout(0.1)
         nn.init.xavier_normal_(self.W_knowledge)
         nn.init.xavier_normal_(self.P_knowledge)
-        self.xavier_init(self.fc_in)
+        self.xavier_init(self.fc_key)
+        self.xavier_init(self.fc_value)
+        self.xavier_init(self.fc_query)
+        self.xavier_init(self.fc_out)
 
     def xavier_init(self, layer):
         nn.init.xavier_normal_(layer.weight)
         nn.init.zeros_(layer.bias)
 
-    def forward(self, features):
-        #sent_embed = features[:,0,:] # CLS embedding as sentence embedding
+    def forward(self, features, attention_mask):
+        sent_embed = features[:,0,:] # CLS embedding as sentence embedding
+        attention_mask = attention_mask[:,1:]
         features = features[:,1:,:] # remove CLS
 
         features = self.layer_norm(features)
-        features = self.fc_in(features) # (batch_size, seq_len, dim)
+        batch_size, seq_len, _ = features.shape
+        Key = self.fc_key(features).view(batch_size, seq_len, self.heads, self.head_dim).transpose(1, 2) 
+        # (batch_size, heads, seq_len, head_dim)
+        Value = self.fc_value(features).view(batch_size, seq_len, self.heads, self.head_dim).transpose(1, 2)
+        # (batch_size, heads, seq_len, head_dim)
 
         knowledge_based = torch.matmul(self.W_knowledge.transpose(0, 1), torch.sigmoid(self.P_knowledge)).squeeze() # (dim)
-        knowledge_based = knowledge_based.unsqueeze(0).unsqueeze(0).expand(features.size(0), -1, -1) # (batch_size, 1, dim)
-        attn_knowledge = torch.softmax(features @ knowledge_based.transpose(1, 2), dim = -1) # (batch_size, seq_len, 1)
+        knowledge_based = knowledge_based.unsqueeze(0).unsqueeze(0).expand(Key.size(0), -1, -1) # (batch_size, 1, heads, head_dim)
+        Query = self.fc_query(knowledge_based).view(batch_size, 1, self.heads, self.head_dim).transpose(1, 2)
+
+        attn_knowledge = torch.matmul(Key, Query.transpose(-1, -2)) / self.head_dim ** -0.5 # (batch_size, heads, seq_len, 1)
+        attn_knowledge = attn_knowledge.masked_fill(attention_mask == 0, -1e9)
+        attn_knowledge = torch.softmax(attn_knowledge, dim=-1)
         # attention score based on Knowledge
-        knowledge_based_sent_embed = torch.mean(attn_knowledge * features, dim = 1)
-        
-        return knowledge_based_sent_embed
+        attn_knowledge = self.dropout_attn(attn_knowledge)
+        knowledge_based_sent_embed = torch.mean(attn_knowledge * Value, dim = 1)
+        knowledge_based_sent_embed = knowledge_based_sent_embed.transpose(1, 2).contiguous().view(batch_size, seq_len, -1)
+        return self.fc_out(knowledge_based_sent_embed) + sent_embed
 
 class SqueezeAttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, squeeze_factor: int = 6) -> None:
