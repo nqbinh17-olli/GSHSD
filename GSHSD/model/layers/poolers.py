@@ -128,7 +128,7 @@ class TaskBasedPooling(nn.Module):
 
     def forward(self, features, attention_mask):
         sent_embed = features[:,0,:] # CLS embedding as sentence embedding
-        attention_mask = attention_mask[:,1:].unsqueeze(1)
+        attention_mask = attention_mask[:,1:].unsqueeze(1).unsqueeze(-1)
         features = features[:,1:,:] # remove CLS
 
         features = self.layer_norm(features)
