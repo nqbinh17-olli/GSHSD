@@ -1,5 +1,6 @@
 #%%
 from matplotlib import scale
+from requests import head
 import torch
 from torch import nn
 from model.layers.FFN import FFN
@@ -105,7 +106,7 @@ class TaskBasedPooling(nn.Module):
         super(TaskBasedPooling, self).__init__()
         self.heads = heads
         assert in_size % heads == 0
-        self.head_dim = heads // in_size
+        self.head_dim = in_size // heads
         self.fc_key = nn.Linear(in_size, in_size)
         self.fc_value = nn.Linear(in_size, in_size)
         self.fc_query = nn.Linear(in_size, in_size)
