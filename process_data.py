@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 from sklearn.model_selection import StratifiedKFold, GroupKFold, KFold
 
-
+path = r'GSHSD\data\hatebasetwitter\train.csv'
+pd.read_csv(path)['label_id'].unique() 
 path = r'D:\My_stuffs\Thesis\ALL CODE HERE\GSHSD\GSHSD\data\vlsp2019\orig_train.csv'
 train_data = pd.read_csv(path)
 
