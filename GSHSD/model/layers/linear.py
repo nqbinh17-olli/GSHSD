@@ -16,7 +16,7 @@ def scale_xavier_uniform_(tensor: Tensor, scale: int, gain: float = 1.) -> Tenso
 
     return torch.nn.init._no_grad_uniform_(tensor, -a, a)
 
-def init_weights(m, scale_xavier):
+def init_weights(m, scale_xavier = 1):
     if type(m) == nn.Linear:
         scale_xavier_uniform_(m.weight, scale_xavier)
         #torch.nn.init.xavier_uniform_(m.weight)
