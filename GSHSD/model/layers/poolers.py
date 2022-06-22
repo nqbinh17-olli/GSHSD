@@ -52,18 +52,13 @@ class AttentionPooling(nn.Module):
         self.heads = 8
         assert in_size % self.heads == 0 
         assert hidden_size % self.heads == 0 
-        self.W_Q = nn.Linear(in_size, hidden_size)
-        self.W_K = nn.Linear(in_size, hidden_size)
-        self.W_out = nn.Linear(hidden_size, in_size)
+        self.W_Q = Linear_(in_size, hidden_size)
+        self.W_K = Linear_(in_size, hidden_size)
+        self.W_out = Linear_(hidden_size, in_size)
         self.scale = in_size ** -0.5
-        self.V = nn.Linear(hidden_size // self.heads, 1)
+        self.V = Linear_(hidden_size // self.heads, 1)
         self.activation_dropout = nn.Dropout(0.1)
         self.softmax_dropout = nn.Dropout(0.1)
-
-        nn.init.xavier_normal_(self.W_K.weight)
-        nn.init.xavier_normal_(self.W_Q.weight)
-        nn.init.xavier_normal_(self.W_out.weight)
-        nn.init.xavier_normal_(self.V.weight)
         
     # def ori_forward(self, features):
     #     att = torch.tanh(self.W(features))

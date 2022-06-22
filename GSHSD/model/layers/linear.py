@@ -18,8 +18,8 @@ def scale_xavier_uniform_(tensor: Tensor, scale: int, gain: float = 1.) -> Tenso
 
 def init_weights(m, scale_xavier = 1):
     if type(m) == nn.Linear:
-        scale_xavier_uniform_(m.weight, scale_xavier)
-        #torch.nn.init.xavier_uniform_(m.weight)
+        #scale_xavier_uniform_(m.weight, scale_xavier)
+        torch.nn.init.xavier_uniform_(m.weight)
         if m.bias is not None:
           m.bias.data.fill_(0.01) # fill with value that is closer to zero is better
     return
