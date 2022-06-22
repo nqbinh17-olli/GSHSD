@@ -1,13 +1,11 @@
-#%%
-from matplotlib import scale
-from requests import head
 import torch
 from torch import nn
+
 from model.layers.FFN import FFN
 from model.layers.attention import SelfAttention
+from model.layers.linear import Linear_, init_weights
 
 
-# %%
 class CrossAttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768) -> None:
         super(CrossAttentionPooling, self).__init__()
@@ -26,7 +24,7 @@ class CrossAttentionPooling(nn.Module):
         out = self.FFN2(out, weights_factor=0.5)
         return out
 
-# %%
+
 # class SlotsAttentionPooling(nn.Module):
 #     def __init__(self, in_size: int = 768, hidden_size: int = 512) -> None:
 #         super().__init__()
@@ -104,24 +102,17 @@ class TaskBasedPooling(nn.Module):
         self.heads = heads
         assert in_size % heads == 0
         self.head_dim = in_size // heads
-        self.fc_key = nn.Linear(in_size, in_size)
-        self.fc_value = nn.Linear(in_size, in_size)
-        self.fc_query = nn.Linear(in_size, in_size)
-        self.fc_out = nn.Linear(in_size, in_size)
+        self.fc_key = Linear_(in_size, in_size)
+        self.fc_value = Linear_(in_size, in_size)
+        self.fc_query = Linear_(in_size, in_size)
+        self.fc_out = Linear_(in_size, in_size)
         self.layer_norm = nn.LayerNorm(in_size)
         self.W_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, in_size))
         self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, 1))
         self.dropout_attn = nn.Dropout(0.1)
-        nn.init.xavier_normal_(self.W_knowledge)
-        nn.init.xavier_normal_(self.P_knowledge)
-        self.xavier_init(self.fc_key)
-        self.xavier_init(self.fc_value)
-        self.xavier_init(self.fc_query)
-        self.xavier_init(self.fc_out)
 
-    def xavier_init(self, layer):
-        nn.init.xavier_normal_(layer.weight)
-        nn.init.zeros_(layer.bias)
+        init_weights(self.W_knowledge)
+        init_weights(self.P_knowledge)
 
     def forward(self, features, attention_mask):
         sent_embed = features[:,0,:] # CLS embedding as sentence embedding
@@ -197,3 +188,8 @@ class SelectionPooling(nn.Module):
         context_vector = features*attention
         context_vector = torch.sum(context_vector, dim=1)
         return context_vector
+
+import torch
+w1 = torch.nn.Linear(40, 40)
+w2 = torch.nn.Linear(40, 40)
+torch.nn.init.xavier_normal_(w1.weight)
