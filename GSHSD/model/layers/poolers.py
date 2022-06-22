@@ -111,8 +111,8 @@ class TaskBasedPooling(nn.Module):
         self.P_knowledge = nn.Parameter(torch.Tensor(knowledge_kernels, 1))
         self.dropout_attn = nn.Dropout(0.1)
 
-        init_weights(self.W_knowledge)
-        init_weights(self.P_knowledge)
+        torch.nn.init.xavier_uniform_(self.W_knowledge)
+        torch.nn.init.xavier_uniform_(self.P_knowledge)
 
     def forward(self, features, attention_mask):
         sent_embed = features[:,0,:] # CLS embedding as sentence embedding
