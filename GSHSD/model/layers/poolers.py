@@ -52,6 +52,7 @@ class AttentionPoolingv1(nn.Module):
         self.V = Linear_(hidden_size, 1)
         
     def forward(self, features):
+        # Attention Score focus on 'CLS' token more than other tokens.
         att = torch.tanh(self.W(features))
         score = self.V(att) # [batch, seq_len, 1]
         attention_weights = torch.softmax(score, dim=1)
@@ -72,28 +73,15 @@ class AttentionPooling(nn.Module):
         self.V = Linear_(hidden_size // self.heads, 1)
         self.activation_dropout = nn.Dropout(0.1)
         self.softmax_dropout = nn.Dropout(0.1)
-        
-    # def ori_forward(self, features):
-    #     att = torch.tanh(self.W(features))
-    #     att = self.activation_dropout(att)
-    #     score = self.V(att) # [batch, seq_len, 1]
-
-    #     attention_weights = torch.softmax(score, dim=1)
-    #     context_vector = attention_weights * residual
-    #     context_vector = self.W_out(context_vector)
-    #     context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
-    #     return context_vector
 
     def forward(self, features):
         # Multi-head & Self Attention Style Implementation
-        #features = features * self.scale
-        features = features[:,1:,:] # remove CLS token
         batch, seq_len, _ = features.shape
         Q = self.W_Q(features).view(batch, seq_len, self.heads, -1).transpose(1, 2)
         K = self.W_K(features).view(batch, seq_len, self.heads, -1).transpose(1, 2)
 
         att = torch.tanh(Q) # [batch, heads, seq_len, head_dim]
-        #att = self.activation_dropout(att)
+        att = self.activation_dropout(att)
         score = self.V(att) # [batch, heads, seq_len, 1]
 
         attention_weights = torch.softmax(score, dim=2)
@@ -124,8 +112,7 @@ class TaskBasedPooling(nn.Module):
         self.eps = eps
 
     def forward(self, features, attention_mask):
-        attention_mask = attention_mask[:,1:].unsqueeze(1).unsqueeze(-1)
-        features = features[:,1:,:] # remove CLS
+        attention_mask = attention_mask.unsqueeze(1).unsqueeze(-1)
 
         features = self.layer_norm(features)
         batch_size, seq_len, _ = features.shape

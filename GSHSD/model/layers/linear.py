@@ -54,7 +54,7 @@ class FixNormLinear(nn.Module):
     def forward(self, x):
         w_norm = 1.0 / torch.norm(self.weights, dim=-1, keepdim=True).clamp(min=self.eps)
         x_norm = 1.0 / torch.norm(x, dim=-1, keepdim=True).clamp(min=self.eps)
-        x = self.g_scale * torch.matmul(x, self.weights) * w_norm * x_norm
+        x = self.g_scale * torch.matmul(x * x_norm, (self.weights * w_norm).T)
         if self.bias is not None:
             x += self.bias
         return x
