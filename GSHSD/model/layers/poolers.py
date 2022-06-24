@@ -45,6 +45,19 @@ class CrossAttentionPooling(nn.Module):
 #         return context_vector
 
 
+class AttentionPoolingv1(nn.Module):
+    def __init__(self, in_size: int = 768, hidden_size: int = 512) -> None:
+        super().__init__()
+        self.W = Linear_(in_size, hidden_size)
+        self.V = Linear_(hidden_size, 1)
+        
+    def forward(self, features):
+        att = torch.tanh(self.W(features))
+        score = self.V(att) # [batch, seq_len, 1]
+        attention_weights = torch.softmax(score, dim=1)
+        context_vector = attention_weights * features
+        context_vector = torch.sum(context_vector, dim=1) # [batch, dim]
+        return context_vector
 
 class AttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, hidden_size: int = 512) -> None:
@@ -92,7 +105,7 @@ class AttentionPooling(nn.Module):
         return context_vector      
 
 class TaskBasedPooling(nn.Module):
-    def __init__(self, in_size, knowledge_kernels = 3, heads = 12):
+    def __init__(self, in_size, knowledge_kernels = 3, heads = 12, eps=1e9):
         super(TaskBasedPooling, self).__init__()
         self.heads = heads
         assert in_size % heads == 0
@@ -108,9 +121,9 @@ class TaskBasedPooling(nn.Module):
 
         torch.nn.init.xavier_uniform_(self.W_knowledge)
         torch.nn.init.xavier_uniform_(self.P_knowledge)
+        self.eps = eps
 
     def forward(self, features, attention_mask):
-        sent_embed = features[:,0,:] # CLS embedding as sentence embedding
         attention_mask = attention_mask[:,1:].unsqueeze(1).unsqueeze(-1)
         features = features[:,1:,:] # remove CLS
 
@@ -126,13 +139,13 @@ class TaskBasedPooling(nn.Module):
         Query = self.fc_query(knowledge_based).view(batch_size, 1, self.heads, self.head_dim).transpose(1, 2)
 
         attn_knowledge = torch.matmul(Key, Query.transpose(-1, -2)) / self.head_dim ** -0.5 # (batch_size, heads, seq_len, 1)
-        attn_knowledge = attn_knowledge.masked_fill(attention_mask == 0, -1e9)
+        attn_knowledge = attn_knowledge.masked_fill(attention_mask == 0, -self.eps)
         attn_knowledge = torch.softmax(attn_knowledge, dim=-1)
         # attention score based on Knowledge
         attn_knowledge = self.dropout_attn(attn_knowledge)
         knowledge_based_sent_embed = torch.mean(attn_knowledge * Value, dim = 2)
         knowledge_based_sent_embed = knowledge_based_sent_embed.view(batch_size, -1)
-        return self.fc_out(knowledge_based_sent_embed) + sent_embed
+        return self.fc_out(knowledge_based_sent_embed)
 
 class SqueezeAttentionPooling(nn.Module):
     def __init__(self, in_size: int = 768, squeeze_factor: int = 6) -> None:
@@ -183,8 +196,3 @@ class SelectionPooling(nn.Module):
         context_vector = features*attention
         context_vector = torch.sum(context_vector, dim=1)
         return context_vector
-
-import torch
-w1 = torch.nn.Linear(40, 40)
-w2 = torch.nn.Linear(40, 40)
-torch.nn.init.xavier_normal_(w1.weight)

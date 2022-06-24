@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from torch.utils import checkpoint
 from transformers import AutoModel, AutoTokenizer, AutoConfig
 
-from model.layers.poolers import SqueezeAttentionPooling, CrossAttentionPooling, AttentionPooling, TaskBasedPooling
+from model.layers.poolers import AttentionPooling, TaskBasedPooling, AttentionPoolingv1
 from model.layers.CNN import ConvBlock
 
 
@@ -42,12 +42,13 @@ class TransformerEncoder(nn.Module):
         self.checkpoint_batch_size = checkpoint_batch_size
 
         config = AutoConfig.from_pretrained(model_name_or_path, **model_args, cache_dir=cache_dir)
+        self.eps = config.layer_norm_eps
         tokenizer_path = tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path
         self.sent_encoder = AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, cache_dir=cache_dir, **tokenizer_args)
         emb_size = self.get_word_embedding_dimension()
 
-        if pooler_type not in ['cls', 'attn_pooling', 'taskbased_pooling']:
+        if pooler_type not in ['cls', 'attn_pooling', 'taskbased_pooling', 'attn_poolingv1']:
             raise ValueError(f'pooler_type: {pooler_type} is not supported!')
         self.pooler_type = pooler_type
         if pooler_type == 'cls':
@@ -55,7 +56,9 @@ class TransformerEncoder(nn.Module):
         elif pooler_type == 'attn_pooling':
             self.pooler = AttentionPooling(emb_size, hidden_size=emb_size*4)
         elif pooler_type == 'taskbased_pooling':
-            self.pooler = TaskBasedPooling(emb_size, knowledge_kernels = 12, heads = config.num_attention_heads)
+            self.pooler = TaskBasedPooling(emb_size, knowledge_kernels = 12, heads = config.num_attention_heads, eps = self.eps)
+        elif pooler_type == 'attn_poolingv1':
+            self.pooler = AttentionPoolingv1(emb_size, hidden_size=emb_size*4)
 
         self.drop_out_pooler = nn.Dropout(dropout_rate)
         
